@@ -1,0 +1,14 @@
+{
+  "name": "solve",
+  "version": "1.0.0",
+  "description": "Solve implementation",
+  "main": "index.js",
+  "scripts": {
+    "compile": "tsc test.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tensorflow/tfjs": "^1.0.0"
+  }
+}
