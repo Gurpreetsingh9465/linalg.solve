@@ -1,8 +1,8 @@
 import * as tf from '@tensorflow/tfjs';
 
 let det = (m: tf.Tensor) => {
-    return tf.tidy(() => { // cleans up intermediate tensors
-        const [r, _] = m.shape
+    return tf.tidy(() => {
+        const [r, _] = m.shape;
         if(r == 1) {
             return m.as1D().slice([0], [1]).dataSync()[0]
         }
@@ -31,11 +31,16 @@ let det = (m: tf.Tensor) => {
 
 let invertMatrix = (m: tf.Tensor) => {
     return tf.tidy(() => {
-        const d = det(m)
-        if (d === 0) {
-            return
+        const [r, c] = m.shape;
+        if(r !== c) {
+            let message: string = 'Matrix m is a Singular Matrix of shape '+r+' '+c;
+            throw new Error(message);
         }
-        const [r, _] = m.shape
+        const d = det(m);
+        if (d === 0) {
+            let message: string = 'Matrix m is Singular Matrix';
+            throw new Error(message);
+        }
         let rows = Array.from(Array(r).keys());
         let dets = [];
         for (let i = 0; i < r; i++) {
@@ -80,11 +85,23 @@ x : {(…, M,), (…, M, K)} ndarray
 */
 
 let solve = (a: tf.Tensor, rhs: tf.Tensor) => {
-    if(det(a) == 0) {
-        console.log('singular matrix'); // assertion
-        return tf.tensor([0]);
+    if(rhs.rank === 1) {
+        rhs = tf.reshape(rhs,[rhs.shape[0],1])
+    }
+    if(a.rank !== 2) {
+        let message: string = 'Expected Rank of matrix a to be 2 but it is '+a.rank;
+        throw new Error(message);
+    }
+    if(rhs.rank !== 2) {
+        let message: string = 'Expected Rank of RHS to be 2 but it is '+rhs.rank;
+        throw new Error(message);
     }
     return tf.tidy(()=>{
+        const [r, c] = a.shape;
+        if(r !== c) {
+            let message: string = 'Matrix m should be square matrix';
+            throw new Error(message);
+        }
         let inverseMat = invertMatrix(a);
         let result = tf.matMul(inverseMat,rhs);
         return result;
