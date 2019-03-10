@@ -84,9 +84,11 @@ let solve = (a: tf.Tensor, rhs: tf.Tensor) => {
         console.log('singular matrix'); // assertion
         return tf.tensor([0]);
     }
-    let inverseMat = invertMatrix(a);
-    let result = tf.matMul(inverseMat,rhs);
-    return result;
+    return tf.tidy(()=>{
+        let inverseMat = invertMatrix(a);
+        let result = tf.matMul(inverseMat,rhs);
+        return result;
+    })
 }
 
 export { solve,invertMatrix,det };
