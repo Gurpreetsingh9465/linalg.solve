@@ -1,5 +1,25 @@
 import * as tf from '@tensorflow/tfjs';
 
+
+let diagonal = (a:tf.Tensor) => {
+    const [n,m] = a.shape;
+    if(n !== m) {
+        throw new Error('Matrix is not sqaure matrix')
+    }
+    if(a.rank !== 2) {
+        throw new Error('Matrix was expected but got a Tensor')
+    }
+    let get = (a:tf.Tensor,i:number,j:number) => {
+        return a.dataSync()[n*i+j];
+    }
+    let diagonal = [];
+    for(let i = 0;i < n;i++) {
+        diagonal.push(get(a,i,i));
+    }
+    return tf.tensor(diagonal);
+}
+
+
 let det = (m: tf.Tensor) => {
     return tf.tidy(() => {
         const [r, _] = m.shape;
@@ -65,25 +85,6 @@ let invertMatrix = (m: tf.Tensor) => {
     })
 }
 
-/*
-
-Parameters:	
-
-a : (…, M, M) array_like
-
-    Coefficient matrix.
-b : {(…, M,), (…, M, K)}, array_like
-
-    Ordinate or “dependent variable” values.
-
-Returns:	
-
-x : {(…, M,), (…, M, K)} ndarray
-
-    Solution to the system a x = b. Returned shape is identical to b.
-
-*/
-
 let solve = (a: tf.Tensor, rhs: tf.Tensor) => {
     if(rhs.rank === 1) {
         rhs = tf.reshape(rhs,[rhs.shape[0],1])
@@ -108,4 +109,70 @@ let solve = (a: tf.Tensor, rhs: tf.Tensor) => {
     })
 }
 
-export { solve,invertMatrix,det };
+let is_lower = (a: tf.Tensor) => {
+    const [n,m] = a.shape;
+    if(n !== m) {
+        throw new Error('Matrix is not sqaure matrix')
+    }
+    if(a.rank !== 2) {
+        throw new Error('Matrix was expected but got a Tensor')
+    }
+    let get = (a:tf.Tensor,i:number,j:number) => {
+        return a.dataSync()[n*i+j];
+    }
+    for(let i = 0; i<n; i++) {
+        for(let j = i+1; j<m; j++) {
+            if(get(a,i,j) !== 0)
+                return false;
+        }
+    }
+    return true;
+}
+let is_upper = (a: tf.Tensor) => {
+    const [n,m] = a.shape;
+    if(n !== m) {
+        throw new Error('Matrix is not sqaure matrix')
+    }
+    if(a.rank !== 2) {
+        throw new Error('Matrix was expected but got a Tensor')
+    }
+    let get = (a:tf.Tensor,i:number,j:number) => {
+        return a.dataSync()[n*i+j];
+    }
+    for(let i = 2; i<n; i++) {
+        for(let j = 0; j< Math.min(m,i-1); j++) {
+            if(get(a,i,j) !== 0)
+                return false;
+        }
+    }
+    return true;
+}
+
+let eigvals = (mat: tf.Tensor,max_it = 10) => {
+    if(is_upper(mat) || is_lower(mat)) {
+        return diagonal(mat);
+    }
+    return tf.tidy(()=>{
+        let copy = mat.clone();
+        let i = 0;
+        while(i <= max_it) {  // stop loop when copy is right triangular matrix 
+            const [a,b] = tf.linalg.qr(copy);
+            copy = tf.matMul(b,a);
+            i+=1;
+        }
+        return diagonal(copy);
+    })
+}
+
+let slogdet = (a: tf.Tensor) => {
+    let d = det(a);
+    if(d == 0) {
+        return [0,Infinity];
+    }else if(d < 0 ) {
+        return [-1,Math.log((-1*d))];
+    } else {
+        return [1,Math.log(d)];
+    }
+}
+
+export { solve, invertMatrix, det, is_lower, is_upper, diagonal, eigvals, slogdet };
