@@ -91,7 +91,18 @@ let SVD = (X: tf.Tensor) => {
     let [_,Vtrans] = eig(xtransmulx);
     return [U,S,Vtrans];
 }
-
+let PCA = (a:tf.Tensor, n_components: number) => {
+    const [val,vecs] = eig(a); // already sorted
+    let i = 0;
+    let data = [];
+    for(let vec of vecs) {
+        data.push(tf.matMul(a,tf.tensor(vec)));
+        i+=1;
+        if(i === n_components)
+            break;
+    }
+    return data;
+}
 
 let a = tf.tensor([[ 5.,  4.,  2.],
     [ 4.,  8., 10.],
