@@ -16,7 +16,7 @@ let diagonal = (a:tf.Tensor) => {
     for(let i = 0;i < n;i++) {
         diagonal.push(get(a,i,i));
     }
-    return tf.tensor(diagonal);
+    return diagonal;
 }
 
 
@@ -150,7 +150,9 @@ let is_upper = (a: tf.Tensor) => {
 
 let eigvals = (mat: tf.Tensor,max_it = 10) => {
     if(is_upper(mat) || is_lower(mat)) {
-        return diagonal(mat);
+        let res = diagonal(mat);
+        
+        return res;
     }
     return tf.tidy(()=>{
         let copy = mat.clone();
@@ -160,7 +162,9 @@ let eigvals = (mat: tf.Tensor,max_it = 10) => {
             copy = tf.matMul(b,a);
             i+=1;
         }
-        return diagonal(copy);
+        let res = diagonal(copy);
+        res = res.sort((a,b)=>{return b-a});
+        return res;
     })
 }
 
@@ -175,4 +179,62 @@ let slogdet = (a: tf.Tensor) => {
     }
 }
 
-export { solve, invertMatrix, det, is_lower, is_upper, diagonal, eigvals, slogdet };
+let covarianceMatrix = (mat: tf.Tensor) => {
+    // using kalman filtering can also be calculated by (mat.transpose() * mat)/n-1
+    if(mat.rank !== 2) {
+        throw new Error('Matrix was expected but got a Tensor')
+    }
+    let [n,d] = mat.shape;
+    return tf.tidy(()=>{
+        // a = mat - (ones([n,n]) * mat)/n
+        let a = tf.sub(mat,tf.div(tf.matMul(tf.ones([n,n]),mat),n));
+        // res = (a.transpose*a)/n
+        let res = tf.div(tf.matMul(a.transpose(),a),n);
+        return res;
+    })
+}
+
+let cholesky = (a: tf.Tensor) => {
+    let get = (a:tf.Tensor,i:number,j:number) => {
+        const [n,m] = a.shape;
+        return a.dataSync()[m*i+j];
+    }
+    const [n,m] = a.shape;
+    let ev = eigvals(a);
+    for(let e of ev){
+        if(isNaN(e) || e < 0){
+            throw new Error("Matrix is not positive definite")
+        }
+    }
+    let set = (a:tf.Tensor,val:number,i:number,j:number) => {
+        const [n,m] = a.shape;
+        a.dataSync()[m*i+j] = val;
+    }
+    let L = tf.zeros([n,n]);
+    for(let i = 0;i<n;i++) {
+        for(let j = 0; j<=i;j++) {
+            let val = 0;
+            if(i === j) {
+                for(let k = 0; k < j; k++) {
+                    val += Math.pow(get(L,j,k),2);
+                }
+                val = Math.sqrt(get(a,j,j) - val);
+                set(L,val,j,j);
+            } else {
+                for(let k = 0; k < j; k++) {
+                    val += (get(L,i,k)*get(L,j,k));
+                }
+                val = get(a,i,j) - val;
+                val /= get(L,j,j);
+                set(L,val,i,j);
+            }
+            if(isNaN(val)) {
+                throw new Error("Matrix is not positive definite");
+            }
+        }
+    }
+    return L;
+}
+
+
+export { solve, invertMatrix, det, is_lower, is_upper, diagonal, eigvals, slogdet, covarianceMatrix, cholesky };
